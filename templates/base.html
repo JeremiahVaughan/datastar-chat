@@ -1,0 +1,76 @@
+{{ define "base" }}
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Datastar Hello</title>
+    <base href="/" />
+	<meta name="description" content="gotta start somewhere">
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/x-icon" href="/static/favicon.ico" />
+    <script src="https://cdn.jsdelivr.net/npm/@sudodevnull/datastar@0.19.4/dist/datastar.min.js" defer type="module"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: #36393F;
+            color: #fff;
+        }
+
+        h1 {
+            color: #fa16b2;
+        }
+
+        h2 {
+            color: #b4b4b4;
+        }
+
+        .no-select {
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+        }
+
+        textarea {
+            resize: none;
+        }
+    </style>
+        <script defer>
+            const hotReloadPath = `/hotreload`
+
+            console.log(`Hot reload initializing @ ${hotReloadPath}`)
+            if (typeof(EventSource) !== "undefined") {
+              const es = new EventSource(hotReloadPath);
+              es.onmessage = function(event) {
+                location.reload();
+              }
+              es.onerror = function(err) {
+                console.log("lost connection to server, reloading");
+                setTimeout(() => {
+                  location.reload();
+                }, 500);
+              };
+            }
+        </script>
+  </head>
+  <body>
+    <main class="container" id="main" data-store='{ "input": "", show: false }'>
+        <div class="chat-feed">
+        </div>
+        <textarea id="message-input" rows="4" cols="75"/></textarea>
+        <div>
+          <span>Feed from server: </span>
+          <span>Feed from server: </span>
+          <span>Feed from server: </span>
+          
+          <!-- <span id="feed" data-on-load="$$get('/chatFeed')"></span> -->
+        </div>
+    </main>
+  </body>
+</html>
+{{ end }}
