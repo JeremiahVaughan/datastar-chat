@@ -1,3 +1,5 @@
 ./bin
 debug
 __debug_bin*
+.env.local
+.env
