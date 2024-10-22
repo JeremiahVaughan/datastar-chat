@@ -11,6 +11,11 @@ import (
 	"github.com/fsnotify/fsnotify"
 )
 
+type ThreadSafeStringBuilder struct {
+	mu sync.Mutex
+	b  strings.Builder
+}
+
 var UiFilesBeChangin chan fsnotify.Event = make(chan fsnotify.Event)
 
 func handleHotreload(w http.ResponseWriter, r *http.Request) {
@@ -18,7 +23,7 @@ func handleHotreload(w http.ResponseWriter, r *http.Request) {
 	i := 0
 	retrySleep := 250 * time.Millisecond
 	var lastEventTime int64
-	var events strings.Builder
+	var events ThreadSafeStringBuilder
 	for {
 		event := <-UiFilesBeChangin
 		// debounce 5 miliseconds
@@ -26,10 +31,12 @@ func handleHotreload(w http.ResponseWriter, r *http.Request) {
 		if !isChangedEvent(event) {
 			continue
 		}
-		_, err := events.WriteString(fmt.Sprintf("name=%s@time=%d", event.Name, time.Now().UnixMilli()))
+		events.mu.Lock()
+		_, err := events.b.WriteString(fmt.Sprintf("name=%s@time=%d", event.Name, time.Now().UnixMilli()))
 		if err != nil {
 			log.Fatalf("error, when writing event to string builder. Error: %v", err)
 		}
+		events.mu.Unlock()
 		if lastEventTime != 0 && lastEventTime+debounceTimeMilli < time.Now().UnixMilli() {
 			continue
 		}
@@ -43,11 +50,13 @@ func handleHotreload(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, err2.Error(), http.StatusInternalServerError)
 				log.Fatal(err2.Error())
 			}
+			events.mu.Lock()
 			evt := fmt.Sprintf(
 				"id:%X\nretry:%d\ndata:%s\n\n",
-				index, retrySleep, events.String(),
+				index, retrySleep, events.b.String(),
 			)
-			events.Reset()
+			events.b.Reset()
+			events.mu.Unlock()
 			w.Write([]byte(evt))
 			w.(http.Flusher).Flush()
 			index++
