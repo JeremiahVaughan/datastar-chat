@@ -20,13 +20,14 @@ var templateMap = make(map[string]*template.Template)
 
 var localMode bool
 
+var watcher *fsnotify.Watcher
+
 func main() {
 	log.Println("starting chat app")
 	localMode = os.Getenv("LOCAL_MODE") == "true"
 	var homeTemplate *template.Template
 	var err error
 	if localMode {
-		var watcher *fsnotify.Watcher
 		watcher, err = fsnotify.NewWatcher()
 		if err != nil {
 			log.Fatalf("error, when creating new watcher. Error: %v", err)
