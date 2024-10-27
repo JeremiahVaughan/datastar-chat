@@ -58,13 +58,18 @@ func main() {
 		templateMap["base.html"] = homeTemplate
 	}
 
+	err = initConfig()
+	if err != nil {
+		log.Fatalf("error, when initConfig() for main(). Error: %v", err)
+	}
 	mux := http.NewServeMux()
 
 	// endpoints key is endpoint address
 	endpoints := map[string]http.HandlerFunc{
-		"/":          handleHome,
-		"/chatFeed":  handleChatFeed,
-		"/hotreload": handleHotreload,
+		"/":            handleHome,
+		"/chatFeed":    handleChatFeed,
+		"/hotreload":   handleHotreload,
+		"/sendMessage": handleSendMessage,
 	}
 	for k, v := range endpoints {
 		mux.Handle(k, v)
@@ -139,19 +144,6 @@ func handleGet(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func handleChatFeed(w http.ResponseWriter, _ *http.Request) {
-	sendHeaders(w)
-	for {
-		time.Sleep(200 * time.Millisecond)
-		frag := fmt.Sprintf(`<span id="feed">Random number: %d</span>`, time.Now().UnixMilli())
-		err := sendSSE(w, "", "", frag, true)
-		if err != nil {
-			http.Error(w, fmt.Sprintf("error, when sending response 1 for handleFeed(). Error: %v", err), http.StatusInternalServerError)
-			return
-		}
-	}
-}
-
 func handleHome(w http.ResponseWriter, r *http.Request) {
 	err := templateMap["base.html"].ExecuteTemplate(w, "base", nil)
 	if err != nil {
@@ -181,7 +173,7 @@ func sendSSE(w http.ResponseWriter, selector string, mergeType string, fragment 
 	}
 
 	if mergeType != "" {
-		_, err = fmt.Fprintf(w, "data: mergeType %s\n", mergeType)
+		_, err = fmt.Fprintf(w, "data: merge %s\n", mergeType)
 		if err != nil {
 			return fmt.Errorf("error, when writing third line of sendSSE(). Error: %v", err)
 		}
