@@ -39,13 +39,24 @@
         textarea {
             resize: none;
         }
-    </style>
+
+        input {
+            appearance: none;
+        }
+        input::before {
+            content: '->';
+        }
+        input::after {
+            content: 'coke';
+        }
+   </style>
         <script defer>
             const hotReloadPath = `/hotreload`
             console.log(`Hot reload initializing @ ${hotReloadPath}`)
             if (typeof(EventSource) !== "undefined") {
               const es = new EventSource(hotReloadPath);
               es.onmessage = function(event) {
+                console.log("code change detected, reloading. Event:", event);                                              
                 location.reload();
               }
               es.onerror = function(err) {
@@ -54,11 +65,16 @@
                   location.reload();
                 }, 500);
               };
+              console.log("Hot reload initialized");                                              
             }
         </script>
   </head>
   <body>
     <main class="container" id="main">
+        <label>
+            <input type="checkbox"/>
+            Some 9 cool checkbox
+        </label>
         <div class="chat-feed">
         </div>
         <div id="output">
