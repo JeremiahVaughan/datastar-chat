@@ -1,61 +1,39 @@
 package main
 
 import (
-	"embed"
 	"fmt"
-	"github.com/fsnotify/fsnotify"
-	"html/template"
 	"io"
 	"log"
 	"net/http"
 	"os"
-	"path/filepath"
 	"time"
+
+	"github.com/JeremiahVaughan/datastar-chat/ui_util"
+	"github.com/fsnotify/fsnotify"
 )
-
-//go:embed templates/*
-var templatesFiles embed.FS
-
-var templateMap = make(map[string]*template.Template)
 
 var localMode bool
 
 var watcher *fsnotify.Watcher
+var tl *ui_util.TemplateLoader
 
 func main() {
 	log.Println("starting chat app")
 	localMode = os.Getenv("LOCAL_MODE") == "true"
-	var homeTemplate *template.Template
 	var err error
-	if localMode {
-		watcher, err = fsnotify.NewWatcher()
-		if err != nil {
-			log.Fatalf("error, when creating new watcher. Error: %v", err)
-		}
-		err = parseDevTemplates()
-		if err != nil {
-			log.Fatalf("error, when parseDevTemplates() for main(). Error: %v", err)
-		}
-		defer watcher.Close()
-		err = watcher.Add("./templates")
-		if err != nil {
-			log.Fatalf("error, when adding templates directory to be watched. Error: %v", err)
-		}
-		go func() {
-			err2 := watchDemFiles(watcher)
-			if err2 != nil {
-				log.Fatalf("error, when watchDemFiles() for main(). Error: %v", err2)
-			}
-		}()
-	} else {
-		homeTemplate, err = template.ParseFS(
-			templatesFiles,
-			"templates/base.html",
-		)
-		if err != nil {
-			log.Fatalf("error, when attempting to parse html baseTemplateParsed. Error: %v", err)
-		}
-		templateMap["base.html"] = homeTemplate
+	templates := []ui_util.HtmlTemplate{
+		{
+			Name: "base",
+		},
+	}
+	tl, err = ui_util.NewTemplateLoader(
+		"templates/base",
+		"templates/overrides",
+		templates,
+		localMode,
+	)
+	if err != nil {
+		log.Fatalf("error, when ui_util.NewTemplateLoader() for main(). Error: %v", err)
 	}
 
 	err = initConfig()
@@ -68,7 +46,7 @@ func main() {
 	endpoints := map[string]http.HandlerFunc{
 		"/":            handleHome,
 		"/chatFeed":    handleChatFeed,
-		"/hotreload":   handleHotreload,
+		"/hotreload":   tl.HandleHotReload,
 		"/sendMessage": handleSendMessage,
 	}
 	for k, v := range endpoints {
@@ -78,34 +56,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("error, when setting up http server for main(). Error: %v", err)
 	}
-}
-
-func parseDevTemplates() error {
-	execPath, err := os.Executable()
-	if err != nil {
-		return fmt.Errorf("error, when retrieving executable path. Error: %v", err)
-	}
-	executableDir := filepath.Dir(execPath)
-	templatesDir := fmt.Sprintf("%s/templates", executableDir)
-	templatesPath := fmt.Sprintf("%s/*.html", templatesDir)
-	templateFileNames, err := filepath.Glob(templatesPath)
-	if err != nil {
-		return fmt.Errorf("error, when trying to list files for local hosting. Error: %v", err)
-	}
-	for i, fullPath := range templateFileNames {
-		fileName := filepath.Base(fullPath) // Get only the file name
-		templateFileNames[i] = fileName
-	}
-	var homeTemplate *template.Template
-	homeTemplate, err = template.ParseFS(
-		os.DirFS(templatesDir),
-		templateFileNames...,
-	)
-	if err != nil {
-		return fmt.Errorf("error, when trying to read files for local hosting. Error: %v", err)
-	}
-	templateMap["base.html"] = homeTemplate
-	return nil
 }
 
 func handlePut(w http.ResponseWriter, r *http.Request) {
@@ -144,8 +94,12 @@ func handleGet(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+type BaseData struct {
+	LocalMode bool
+}
+
 func handleHome(w http.ResponseWriter, r *http.Request) {
-	err := templateMap["base.html"].ExecuteTemplate(w, "base", nil)
+	err := tl.GetTemplateGroup("base").ExecuteTemplate(w, "base", BaseData{LocalMode: true})
 	if err != nil {
 		http.Error(w, fmt.Sprintf("error, when serving base.html. Error: %v", err), http.StatusInternalServerError)
 		return

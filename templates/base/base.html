@@ -50,6 +50,7 @@
             content: 'coke';
         }
    </style>
+        {{ if .LocalMode }}
         <script defer>
             const hotReloadPath = `/hotreload`
             console.log(`Hot reload initializing @ ${hotReloadPath}`)
@@ -68,12 +69,13 @@
               console.log("Hot reload initialized");                                              
             }
         </script>
+        {{ end }}
   </head>
   <body>
     <main class="container" id="main">
         <label>
             <input type="checkbox"/>
-            Some 9 cool checkbox
+            Some 24 cool checkbox
         </label>
         <div class="chat-feed">
         </div>
